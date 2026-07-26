@@ -2,55 +2,355 @@
 <html lang="nl">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <title>AR Opdracht-knop</title>
   <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body {
       font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
-      background: #0f172a;
-      color: #e2e8f0;
-      display: flex;
-      min-height: 100vh;
-      margin: 0;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 24px;
+      background: #0f172a; color: #e2e8f0; margin: 0;
+      min-height: 100vh; display: flex; flex-direction: column;
+      padding: 20px; gap: 16px;
     }
-    .kaart {
-      max-width: 420px;
-      background: #1e293b;
-      border-radius: 16px;
-      padding: 32px 28px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    header { text-align: center; margin-top: 8px; }
+    header h1 { font-size: 20px; margin: 0; }
+    header .wie { font-size: 13px; color: #64748b; margin-top: 4px; min-height: 18px; }
+    .kaart { background: #1e293b; border-radius: 16px; padding: 20px; }
+    label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 8px; }
+    input[type=text], textarea {
+      width: 100%; background: #0f172a; border: 1px solid #334155; color: #e2e8f0;
+      border-radius: 10px; padding: 12px; font-size: 16px; font-family: inherit;
     }
-    h1 { font-size: 22px; margin: 0 0 8px; }
-    .vink { font-size: 48px; margin-bottom: 8px; }
-    p { line-height: 1.5; color: #94a3b8; font-size: 15px; }
-    .adres {
-      margin-top: 20px;
-      padding: 12px;
-      background: #0f172a;
-      border-radius: 10px;
-      font-size: 13px;
-      color: #38bdf8;
-      word-break: break-all;
+    textarea { resize: vertical; min-height: 64px; }
+    .opname-knop {
+      width: 100%; border: none; border-radius: 14px; padding: 22px;
+      font-size: 18px; font-weight: 600; color: #fff; background: #0ea5e9;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
     }
+    .opname-knop.bezig { background: #dc2626; }
+    .timer { font-variant-numeric: tabular-nums; font-size: 15px; color: #94a3b8; text-align: center; min-height: 20px; }
+    .foto-knop, .verzend-knop {
+      width: 100%; border: none; border-radius: 12px; padding: 16px;
+      font-size: 16px; font-weight: 600; margin-top: 10px;
+    }
+    .foto-knop { background: #334155; color: #e2e8f0; }
+    .verzend-knop { background: #16a34a; color: #fff; }
+    .verzend-knop:disabled, .opname-knop:disabled { opacity: 0.5; }
+    input[type=file] { display: none; }
+    .lijst { margin-top: 12px; font-size: 14px; color: #cbd5e1; }
+    .lijst div { padding: 6px 0; border-top: 1px solid #334155; display: flex; justify-content: space-between; }
+    .status {
+      text-align: center; font-size: 15px; padding: 14px; border-radius: 12px;
+      min-height: 20px; line-height: 1.4;
+    }
+    .status.ok { background: #052e16; color: #86efac; }
+    .status.fout { background: #450a0a; color: #fca5a5; }
+    .status.bezig { background: #1e293b; color: #93c5fd; }
+    button:active { transform: scale(0.99); }
+    .knop-link { background:none;border:none;color:#38bdf8;font-size:14px;text-decoration:underline;padding:0;cursor:pointer;}
   </style>
 </head>
 <body>
+  <header>
+    <h1>🎙️ Opdracht inspreken</h1>
+    <div class="wie" id="wie"></div>
+  </header>
+
   <div class="kaart">
-    <div class="vink">✅</div>
-    <h1>De hosting werkt!</h1>
-    <p>
-      Als je deze pagina op je telefoon ziet, staat je webadres online en klaar.
-      Dit is nog een testpagina — het echte opnameknopje komt hier straks te staan.
-    </p>
-    <p>Kopieer het adres uit de adresbalk van je browser en stuur het door.</p>
-    <div class="adres" id="adres"></div>
+    <label for="klant">Klant of korte titel (optioneel)</label>
+    <input type="text" id="klant" placeholder="bijv. Autobedrijf Jansen" autocomplete="off">
   </div>
+
+  <div class="kaart">
+    <button class="opname-knop" id="opnameKnop">
+      <span id="opnameLabel">Start opname</span>
+    </button>
+    <div class="timer" id="timer"></div>
+  </div>
+
+  <div class="kaart">
+    <label>Extra typen (optioneel)</label>
+    <textarea id="notitie" placeholder="Bijvoorbeeld details die je liever typt dan inspreekt."></textarea>
+    <button class="foto-knop" id="fotoKnop">📷 Foto's / bestanden toevoegen</button>
+    <input type="file" id="fotoInput" accept="image/*,application/pdf,video/*" multiple>
+    <div class="lijst" id="lijst"></div>
+  </div>
+
+  <button class="verzend-knop" id="verzendKnop" disabled>Verzenden naar inbox</button>
+  <div class="status" id="status"></div>
+  <div style="text-align:center"><button class="knop-link" id="uitloggen" style="display:none">Uitloggen</button></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.28.1/lib/msal-browser.min.js"></script>
   <script>
-    document.getElementById('adres').textContent = window.location.href;
+  // ======================================================================
+  //  INSTELLINGEN — deze waarden horen bij jouw Microsoft-app en OneDrive.
+  // ======================================================================
+  const CONFIG = {
+    clientId: "29e2bb72-4d28-4ce6-aaec-54abcdf8137b",
+    tenantId: "decacbc1-51ee-4a32-b684-fa02af06d80b",
+    redirectUri: "https://dennisverhoef.github.io/ar-opdracht-knop/",
+    // Pad in OneDrive waar de opdracht-mapjes komen (t.o.v. de hoofdmap van je OneDrive):
+    inboxPad: "Claude System/AI-Workflow/00_Inbox",
+    scopes: ["Files.ReadWrite", "User.Read"]
+  };
+  const GRAPH = "https://graph.microsoft.com/v1.0";
+
+  // ---------------------------------------------------------------- MSAL
+  const pca = new msal.PublicClientApplication({
+    auth: {
+      clientId: CONFIG.clientId,
+      authority: "https://login.microsoftonline.com/" + CONFIG.tenantId,
+      redirectUri: CONFIG.redirectUri
+    },
+    cache: { cacheLocation: "localStorage" }
+  });
+
+  let account = null;
+
+  async function initAuth() {
+    await pca.initialize();
+    const resp = await pca.handleRedirectPromise();
+    if (resp && resp.account) account = resp.account;
+    if (!account) {
+      const alle = pca.getAllAccounts();
+      if (alle.length) account = alle[0];
+    }
+    toonWie();
+  }
+
+  function toonWie() {
+    const wie = document.getElementById("wie");
+    const uit = document.getElementById("uitloggen");
+    if (account) {
+      wie.textContent = "Ingelogd als " + (account.username || account.name);
+      uit.style.display = "inline-block";
+    } else {
+      wie.textContent = "Nog niet ingelogd — bij verzenden log je in.";
+      uit.style.display = "none";
+    }
+  }
+
+  async function haalToken() {
+    if (!account) {
+      await pca.loginRedirect({ scopes: CONFIG.scopes });
+      return null; // pagina laadt opnieuw na terugkomst
+    }
+    try {
+      const r = await pca.acquireTokenSilent({ scopes: CONFIG.scopes, account });
+      return r.accessToken;
+    } catch (e) {
+      await pca.acquireTokenRedirect({ scopes: CONFIG.scopes, account });
+      return null;
+    }
+  }
+
+  document.getElementById("uitloggen").onclick = () => {
+    if (account) pca.logoutRedirect({ account });
+  };
+
+  // ------------------------------------------------------------ Opname
+  let mediaRecorder = null, audioChunks = [], audioBlob = null, timerId = null, seconden = 0;
+
+  const opnameKnop = document.getElementById("opnameKnop");
+  const opnameLabel = document.getElementById("opnameLabel");
+  const timerEl = document.getElementById("timer");
+
+  opnameKnop.onclick = async () => {
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+      mediaRecorder.stop();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunks = [];
+      const mime = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus" : "";
+      mediaRecorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      mediaRecorder.ondataavailable = e => { if (e.data.size) audioChunks.push(e.data); };
+      mediaRecorder.onstop = () => {
+        audioBlob = new Blob(audioChunks, { type: audioChunks[0]?.type || "audio/webm" });
+        stream.getTracks().forEach(t => t.stop());
+        clearInterval(timerId);
+        opnameKnop.classList.remove("bezig");
+        opnameLabel.textContent = "Opnieuw opnemen";
+        timerEl.textContent = "Opname klaar (" + tijd(seconden) + ")";
+        werkKnoppenBij();
+      };
+      mediaRecorder.start();
+      seconden = 0;
+      timerEl.textContent = "0:00";
+      timerId = setInterval(() => { seconden++; timerEl.textContent = tijd(seconden); }, 1000);
+      opnameKnop.classList.add("bezig");
+      opnameLabel.textContent = "Stop opname";
+    } catch (e) {
+      zetStatus("fout", "Kon de microfoon niet gebruiken. Geef toestemming voor de microfoon en probeer opnieuw.");
+    }
+  };
+
+  function tijd(s) { return Math.floor(s/60) + ":" + String(s%60).padStart(2,"0"); }
+
+  // ------------------------------------------------------------ Foto's
+  let bestanden = [];
+  document.getElementById("fotoKnop").onclick = () => document.getElementById("fotoInput").click();
+  document.getElementById("fotoInput").onchange = (e) => {
+    for (const f of e.target.files) bestanden.push(f);
+    toonLijst();
+    werkKnoppenBij();
+  };
+  function toonLijst() {
+    const lijst = document.getElementById("lijst");
+    lijst.innerHTML = "";
+    bestanden.forEach((f, i) => {
+      const div = document.createElement("div");
+      div.innerHTML = "<span>" + f.name + "</span><button class='knop-link' data-i='" + i + "'>verwijder</button>";
+      lijst.appendChild(div);
+    });
+    lijst.querySelectorAll("button").forEach(b => b.onclick = () => {
+      bestanden.splice(+b.dataset.i, 1); toonLijst(); werkKnoppenBij();
+    });
+  }
+
+  function werkKnoppenBij() {
+    const iets = audioBlob || bestanden.length || document.getElementById("notitie").value.trim();
+    document.getElementById("verzendKnop").disabled = !iets;
+  }
+  document.getElementById("notitie").oninput = werkKnoppenBij;
+
+  // ------------------------------------------------------------ Verzenden
+  function zetStatus(soort, tekst) {
+    const el = document.getElementById("status");
+    el.className = "status " + soort;
+    el.textContent = tekst;
+  }
+
+  function padNaarUrl(pad) {
+    return pad.split("/").map(encodeURIComponent).join("/");
+  }
+  function veiligeNaam(s) {
+    return (s || "").replace(/[\\/:*?"<>|]/g, "").trim().slice(0, 60);
+  }
+
+  async function maakMap(token, mapnaam) {
+    const url = GRAPH + "/me/drive/root:/" + padNaarUrl(CONFIG.inboxPad) + ":/children";
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: mapnaam, folder: {}, "@microsoft.graph.conflictBehavior": "rename" })
+    });
+    if (!r.ok) throw new Error("Map aanmaken mislukt (" + r.status + "). Klopt het inbox-pad?");
+    return (await r.json()).id;
+  }
+
+  async function uploadBestand(token, mapId, naam, blob) {
+    if (blob.size < 4 * 1024 * 1024) {
+      const url = GRAPH + "/me/drive/items/" + mapId + ":/" + encodeURIComponent(naam) + ":/content";
+      const r = await fetch(url, {
+        method: "PUT",
+        headers: { "Authorization": "Bearer " + token, "Content-Type": blob.type || "application/octet-stream" },
+        body: blob
+      });
+      if (!r.ok) throw new Error("Upload van " + naam + " mislukt (" + r.status + ").");
+    } else {
+      // Grote bestanden (foto's/video's): upload-sessie in blokken.
+      const sesUrl = GRAPH + "/me/drive/items/" + mapId + ":/" + encodeURIComponent(naam) + ":/createUploadSession";
+      const s = await fetch(sesUrl, {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + token, "Content-Type": "application/json" },
+        body: JSON.stringify({ item: { "@microsoft.graph.conflictBehavior": "rename" } })
+      });
+      if (!s.ok) throw new Error("Kon upload niet starten voor " + naam + " (" + s.status + ").");
+      const sessie = await s.json();
+      const uploadUrl = sessie.uploadUrl;
+      const blok = 5 * 1024 * 1024;
+      for (let start = 0; start < blob.size; start += blok) {
+        const eind = Math.min(start + blok, blob.size);
+        const deel = blob.slice(start, eind);
+        const r = await fetch(uploadUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Length": (eind - start).toString(),
+            "Content-Range": "bytes " + start + "-" + (eind - 1) + "/" + blob.size
+          },
+          body: deel
+        });
+        if (!r.ok && r.status !== 202 && r.status !== 201 && r.status !== 200)
+          throw new Error("Upload-blok mislukt voor " + naam + " (" + r.status + ").");
+      }
+    }
+  }
+
+  document.getElementById("verzendKnop").onclick = async () => {
+    const verzend = document.getElementById("verzendKnop");
+    verzend.disabled = true;
+    zetStatus("bezig", "Bezig met inloggen / voorbereiden…");
+
+    const token = await haalToken();
+    if (!token) return; // er volgt een redirect naar de Microsoft-login
+
+    try {
+      const nu = new Date();
+      const stamp = nu.getFullYear() + "-" +
+        String(nu.getMonth()+1).padStart(2,"0") + "-" +
+        String(nu.getDate()).padStart(2,"0") + "_" +
+        String(nu.getHours()).padStart(2,"0") +
+        String(nu.getMinutes()).padStart(2,"0") +
+        String(nu.getSeconds()).padStart(2,"0");
+      const label = veiligeNaam(document.getElementById("klant").value);
+      const mapnaam = stamp + (label ? "_" + label : "") + "_telefoon";
+
+      zetStatus("bezig", "Mapje aanmaken in je inbox…");
+      const mapId = await maakMap(token, mapnaam);
+
+      const notitie = document.getElementById("notitie").value.trim();
+      let taken = bestanden.length + (audioBlob ? 1 : 0) + 1 /*metadata*/ + (notitie ? 1 : 0);
+      let gedaan = 0;
+      const stap = (naam) => { gedaan++; zetStatus("bezig", "Verzenden… " + gedaan + "/" + taken + " (" + naam + ")"); };
+
+      if (audioBlob) {
+        const ext = (audioBlob.type.includes("webm")) ? "webm" : "m4a";
+        await uploadBestand(token, mapId, "opname." + ext, audioBlob);
+        stap("opname");
+      }
+      if (notitie) {
+        await uploadBestand(token, mapId, "notitie.txt", new Blob([notitie], { type: "text/plain" }));
+        stap("notitie");
+      }
+      for (const f of bestanden) {
+        await uploadBestand(token, mapId, veiligeNaam(f.name) || ("bestand-" + Date.now()), f);
+        stap(f.name);
+      }
+
+      const meta = {
+        bron: "AR Opdracht-knop (telefoon)",
+        aangemaakt: nu.toISOString(),
+        klant_of_titel: document.getElementById("klant").value || null,
+        heeft_opname: !!audioBlob,
+        heeft_notitie: !!notitie,
+        aantal_bijlagen: bestanden.length
+      };
+      await uploadBestand(token, mapId, "metadata.json",
+        new Blob([JSON.stringify(meta, null, 2)], { type: "application/json" }));
+      stap("metadata");
+
+      zetStatus("ok", "✅ Klaar! Je opdracht staat in de inbox. Je computer pakt 'm vanzelf op.");
+      audioBlob = null; bestanden = []; audioChunks = [];
+      document.getElementById("klant").value = "";
+      document.getElementById("notitie").value = "";
+      document.getElementById("timer").textContent = "";
+      document.getElementById("opnameLabel").textContent = "Start opname";
+      toonLijst();
+    } catch (e) {
+      zetStatus("fout", "Er ging iets mis: " + e.message + " Probeer opnieuw of stuur Dennis een schermafbeelding.");
+    } finally {
+      werkKnoppenBij();
+    }
+  };
+
+  // Start
+  initAuth().catch(e => zetStatus("fout", "Inloggen kon niet starten: " + e.message));
   </script>
 </body>
 </html>
