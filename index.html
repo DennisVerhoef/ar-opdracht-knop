@@ -69,27 +69,10 @@
     <div class="wie" id="wie"></div>
   </header>
 
-  <!-- Twee soorten verzoeken: een opdracht inspreken, of beeld laten ophalen -->
-  <div class="modus">
-    <button id="modusOpdracht" class="aan">🎙️ Opdracht</button>
-    <button id="modusBeeld">🖼️ Beeld ophalen</button>
-  </div>
-
+  <!-- Eén formulier: wat je invult bepaalt wat er gebeurt. -->
   <div class="kaart">
     <label for="klant" id="klantLabel">Klant of korte titel (optioneel)</label>
     <input type="text" id="klant" placeholder="bijv. Autobedrijf Jansen" autocomplete="off">
-  </div>
-
-  <!-- Alleen zichtbaar bij 'Beeld ophalen' -->
-  <div class="kaart verborgen" id="kaartWebsite">
-    <label for="website">Website van de klant</label>
-    <input type="text" id="website" placeholder="bijv. peetborst.nl" autocomplete="off"
-           inputmode="url" autocapitalize="off" spellcheck="false">
-    <div class="uitleg">
-      Je computer haalt de bruikbare foto's en video-links van deze site op en zet ze
-      klaar in de map van de klant, met een bestandje erbij waarin staat waar ze vandaan
-      komen. Er wordt niets gepubliceerd.
-    </div>
   </div>
 
   <div class="kaart" id="kaartOpname">
@@ -105,6 +88,19 @@
     <button class="foto-knop" id="fotoKnop">📷 Foto's / bestanden toevoegen</button>
     <input type="file" id="fotoInput" accept="image/*,application/pdf,video/*" multiple>
     <div class="lijst" id="lijst"></div>
+  </div>
+
+  <!-- Staat er niets in, dan wordt er geen beeld opgehaald. -->
+  <div class="kaart" id="kaartWebsite">
+    <label for="website">Website van de klant (optioneel)</label>
+    <input type="text" id="website" placeholder="bijv. peetborst.nl" autocomplete="off"
+           inputmode="url" autocapitalize="off" spellcheck="false">
+    <div class="uitleg">
+      Vul je dit in, dan haalt je computer er ook de bruikbare foto's en video-links
+      vandaan en zet ze in de map van de klant, met een bestandje erbij waarin staat
+      waar ze vandaan komen. Laat je het leeg, dan gebeurt dat niet.
+      Er wordt nooit iets gepubliceerd.
+    </div>
   </div>
 
   <button class="verzend-knop" id="verzendKnop" disabled>Verzenden naar inbox</button>
@@ -180,35 +176,20 @@
   };
 
   // ------------------------------------------------------------ Wat wil je?
-  // "opdracht" = inspreken, je computer schrijft de teksten.
-  // "beeld"    = alleen beeld van de website van een klant ophalen.
-  let modus = "opdracht";
+  // Geen standen meer. Wat je invult bepaalt wat er gebeurt:
+  //   ingesproken (of getypt, of bijlagen)  -> de schrijfketen loopt
+  //   website ingevuld                      -> er wordt ook beeld opgehaald
+  // Allebei mag tegelijk. Website leeg = geen beeld.
 
-  function zetModus(nieuw) {
-    modus = nieuw;
-    const isBeeld = (modus === "beeld");
-
-    document.getElementById("modusOpdracht").classList.toggle("aan", !isBeeld);
-    document.getElementById("modusBeeld").classList.toggle("aan", isBeeld);
-    document.getElementById("kop").textContent = isBeeld
-      ? "🖼️ Beeld ophalen" : "🎙️ Opdracht inspreken";
-
-    // Bij beeld ophalen hoef je niets in te spreken of te typen.
-    document.getElementById("kaartWebsite").classList.toggle("verborgen", !isBeeld);
-    document.getElementById("kaartOpname").classList.toggle("verborgen", isBeeld);
-    document.getElementById("kaartExtra").classList.toggle("verborgen", isBeeld);
-
-    document.getElementById("klantLabel").textContent = isBeeld
-      ? "Naam van de klant" : "Klant of korte titel (optioneel)";
-    document.getElementById("verzendKnop").textContent = isBeeld
-      ? "Beeld ophalen aanvragen" : "Verzenden naar inbox";
-
-    zetStatus("", "");
-    werkKnoppenBij();
+  function heeftOpdracht() {
+    return !!(audioBlob || bestanden.length
+              || document.getElementById("notitie").value.trim());
   }
 
-  document.getElementById("modusOpdracht").onclick = () => zetModus("opdracht");
-  document.getElementById("modusBeeld").onclick = () => zetModus("beeld");
+  function wilBeeld() {
+    return !!(document.getElementById("website").value.trim()
+              && document.getElementById("klant").value.trim());
+  }
 
   // ------------------------------------------------------------ Opname
   let mediaRecorder = null, audioChunks = [], audioBlob = null, timerId = null, seconden = 0;
@@ -273,16 +254,17 @@
   }
 
   function werkKnoppenBij() {
-    let klaar;
-    if (modus === "beeld") {
-      // Voor beeld ophalen zijn allebei nodig: bij welke klant hoort het,
-      // en van welke site moet het komen.
-      klaar = document.getElementById("klant").value.trim()
-           && document.getElementById("website").value.trim();
-    } else {
-      klaar = audioBlob || bestanden.length || document.getElementById("notitie").value.trim();
-    }
+    // Verzenden kan zodra er iets te doen is: een opdracht, of alleen beeld.
+    // Voor beeld alleen zijn allebei nodig — bij welke klant hoort het, en van
+    // welke site moet het komen.
+    const klaar = heeftOpdracht() || wilBeeld();
     document.getElementById("verzendKnop").disabled = !klaar;
+
+    const site = document.getElementById("website").value.trim();
+    document.getElementById("verzendKnop").textContent =
+      !heeftOpdracht() && site ? "Alleen beeld ophalen"
+      : site ? "Verzenden én beeld ophalen"
+      : "Verzenden naar inbox";
   }
   document.getElementById("notitie").oninput = werkKnoppenBij;
   document.getElementById("klant").oninput = werkKnoppenBij;
@@ -359,7 +341,8 @@
     const token = await haalToken();
     if (!token) return; // er volgt een redirect naar de Microsoft-login
 
-    const isBeeld = (modus === "beeld");
+    // Alleen-beeld als er niets ingesproken of getypt is.
+    const isBeeld = !heeftOpdracht();
 
     try {
       const nu = new Date();
@@ -418,7 +401,9 @@
         type: isBeeld ? "beeld" : "opdracht",
         aangemaakt: nu.toISOString(),
         klant_of_titel: document.getElementById("klant").value || null,
-        website: isBeeld ? website : null,
+        // Altijd meesturen: bij een gewone opdracht betekent een ingevulde
+        // website dat er NA het schrijven ook beeld opgehaald wordt.
+        website: website || null,
         heeft_opname: !!audioBlob && !isBeeld,
         heeft_notitie: !!notitie && !isBeeld,
         aantal_bijlagen: isBeeld ? 0 : bestanden.length
@@ -429,7 +414,9 @@
 
       zetStatus("ok", isBeeld
         ? "✅ Klaar! Je computer haalt het beeld op en zet het in de map van de klant."
-        : "✅ Klaar! Je opdracht staat in de inbox. Je computer pakt 'm vanzelf op.");
+        : (website
+           ? "✅ Klaar! Je opdracht staat in de inbox en het beeld van de site wordt erbij gezet."
+           : "✅ Klaar! Je opdracht staat in de inbox. Je computer pakt 'm vanzelf op."));
 
       audioBlob = null; bestanden = []; audioChunks = [];
       document.getElementById("klant").value = "";
@@ -446,7 +433,7 @@
   };
 
   // Start
-  zetModus("opdracht");
+  werkKnoppenBij();
   initAuth().catch(e => zetStatus("fout", "Inloggen kon niet starten: " + e.message));
   </script>
 </body>
